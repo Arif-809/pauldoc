@@ -1,0 +1,1298 @@
+{
+  "name": "Xero Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        880
+      ],
+      "id": "03517589-06d7-498b-a660-ef041e3ca253",
+      "name": "Get Email With Attachment",
+      "webhookId": "50c85187-e021-4de4-98cf-924902b34c54",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "utTz6M7IT4wk0wFg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/connections",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "name": "Get Xero Tenant ID",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -608,
+        880
+      ],
+      "id": "26aa91aa-e7f7-4413-8942-2d65ab5e619b",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "mhknDi2mGsPcvuFE",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/api.xro/2.0/Invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Xero-Tenant-Id",
+              "value": "={{ $json.tenantId }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Xero Invoices",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -288,
+        2816
+      ],
+      "id": "7fa7df6c-31a4-4e7d-b4f9-506b21f55354",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "mhknDi2mGsPcvuFE",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Invoices",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        32,
+        880
+      ],
+      "id": "83129212-d318-4516-a4da-4bbe333a4475",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  // Access the nested Invoices object from the input\n  const inv = item.json.Invoices; \n\n  return {\n    json: {\n      invoiceId: inv.InvoiceID || \"\",\n      vendorName: inv.Contact?.Name || \"Unknown Vendor\",\n      amount: inv.Total || 0,\n      // Safely split the date string to remove the time portion\n      date: inv.DateString ? inv.DateString.split('T')[0] : \"\", \n      dueDate: inv.DueDateString ? inv.DueDateString.split('T')[0] : \"\",\n      // Pull account details from the first line item\n      accountCode: inv.LineItems?.[0]?.AccountCode || \"400\",\n      taxType: inv.LineItems?.[0]?.TaxType || \"NONE\",\n      currency: inv.CurrencyCode || \"BDT\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        880
+      ],
+      "id": "ceeb01fb-6d05-4576-aa5b-4e09f1fa9f34",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1024,
+        880
+      ],
+      "id": "705a424b-d3cc-4815-ab4e-75e25d835e33",
+      "name": "Get many messages",
+      "webhookId": "6e9f54f1-dc2a-477c-99e7-d58c6b49fbbc",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "utTz6M7IT4wk0wFg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        880
+      ],
+      "id": "08e2d25f-eb9c-440e-8e0d-c94afb12e265",
+      "name": "Remove Duplicates1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ea14b517-d5eb-4343-9811-a707abbec352",
+              "leftValue": "={{ $json.date }}",
+              "rightValue": "={{ $today.minus({ days: 3 }).format('yyyy-MM-dd') }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        880
+      ],
+      "id": "06d556fc-adf0-4e3a-a6d6-8532abc1ac56",
+      "name": "Invoice filter"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\n// Separate invoices and emails\nconst invoices = items.filter(item => item.json.invoiceId !== undefined);\nconst emails = items.filter(item => item.json.threadId !== undefined);\n\nfor (const email of emails) {\n  // Get email text content\n  const text = email.json.text || '';\n  const html = email.json.html || '';\n  const content = text + ' ' + html;\n\n  // Get binary attachments\n  const binaryKeys = Object.keys(email.binary || {});\n\n  // Find matching invoice\n  const matchedInvoice = invoices.find(inv => {\n    const vendorName = inv.json.vendorName || '';\n    const amount = String(inv.json.amount || '');\n    \n    return (\n      content.toLowerCase().includes(vendorName.toLowerCase()) &&\n      content.includes(amount)\n    );\n  });\n\n  if (!matchedInvoice) continue;\n\n  // If email has attachments\n  if (binaryKeys.length > 0) {\n    for (const key of binaryKeys) {\n      const file = email.binary[key];\n      results.push({\n        json: {\n          invoiceId: matchedInvoice.json.invoiceId,\n          vendorName: matchedInvoice.json.vendorName,\n          amount: matchedInvoice.json.amount,\n          date: matchedInvoice.json.date,\n          dueDate: matchedInvoice.json.dueDate,\n          accountCode: matchedInvoice.json.accountCode,\n          taxType: matchedInvoice.json.taxType,\n          currency: matchedInvoice.json.currency,\n          emailId: email.json.id,\n          emailSubject: email.json.subject,\n          fileName: file.fileName || 'attachment.pdf',\n          mimeType: file.mimeType || 'application/octet-stream'\n        },\n        binary: {\n          data: file\n        }\n      });\n    }\n  } else {\n    // No attachment but still matched\n    results.push({\n      json: {\n        invoiceId: matchedInvoice.json.invoiceId,\n        vendorName: matchedInvoice.json.vendorName,\n        amount: matchedInvoice.json.amount,\n        date: matchedInvoice.json.date,\n        dueDate: matchedInvoice.json.dueDate,\n        accountCode: matchedInvoice.json.accountCode,\n        taxType: matchedInvoice.json.taxType,\n        currency: matchedInvoice.json.currency,\n        emailId: email.json.id,\n        emailSubject: email.json.subject,\n        fileName: null,\n        mimeType: null\n      }\n    });\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { message: 'No matches found' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        896
+      ],
+      "id": "8f74c8f5-1ea0-4fd5-87aa-a12e83fa7686",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1936,
+        240
+      ],
+      "id": "657ac8c9-3588-4819-a3b0-5cdf2df9cfaf",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2480,
+        896
+      ],
+      "id": "f33cf2a5-9728-4b08-beaf-93ad9534e4da",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2800,
+        912
+      ],
+      "id": "a13cb202-c2a5-413a-af93-549b2d3b14f2",
+      "name": "Wait",
+      "webhookId": "a9b48e97-5803-49ad-8654-d540bfead47d"
+    },
+    {
+      "parameters": {
+        "content": "Xero automation for INVOICE :\n\nAutomatic uploading invoice into the xero account. Just place the your xero Client ID and Client secret. Then you get the tenant ID. It will connect with your n8n to xero account. This workflow work for invoice.\n",
+        "height": 480,
+        "width": 384
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -752,
+        688
+      ],
+      "typeVersion": 1,
+      "id": "c94f5df8-0d65-49be-8de0-8e421b185569",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/api.xro/2.0/Invoices",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "page",
+              "value": "1"
+            },
+            {
+              "name": "where",
+              "value": "Type==\"ACCREC\""
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Xero-Tenant-Id",
+              "value": "={{ $json.tenantId }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Xero Invoices2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -288,
+        880
+      ],
+      "id": "fe5471ce-2d21-4718-8ba0-f53d80e66cd4",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "mhknDi2mGsPcvuFE",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1760,
+        2816
+      ],
+      "id": "0de39deb-9f5a-4e95-af48-1e60e9d34780",
+      "name": "Get Email With Attachment1",
+      "webhookId": "50c85187-e021-4de4-98cf-924902b34c54",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "utTz6M7IT4wk0wFg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/connections",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "options": {}
+      },
+      "name": "Get Xero Tenant ID1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -608,
+        2816
+      ],
+      "id": "f05306b6-34ec-4c3f-9d3e-f74cefbd9c48",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "mhknDi2mGsPcvuFE",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Invoices",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        16,
+        2816
+      ],
+      "id": "bccec01a-decb-439b-aa1a-54fdd526afa0",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return items.map(item => {\n  // Access the nested Invoices object from the input\n  const inv = item.json.Invoices; \n\n  return {\n    json: {\n      invoiceId: inv.InvoiceID || \"\",\n      vendorName: inv.Contact?.Name || \"Unknown Vendor\",\n      amount: inv.Total || 0,\n      // Safely split the date string to remove the time portion\n      date: inv.DateString ? inv.DateString.split('T')[0] : \"\", \n      dueDate: inv.DueDateString ? inv.DueDateString.split('T')[0] : \"\",\n      // Pull account details from the first line item\n      accountCode: inv.LineItems?.[0]?.AccountCode || \"400\",\n      taxType: inv.LineItems?.[0]?.TaxType || \"NONE\",\n      currency: inv.CurrencyCode || \"BDT\"\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        2816
+      ],
+      "id": "828ef072-aa49-4ad8-8233-316ac23b814e",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        2816
+      ],
+      "id": "e5ecd050-ac86-4e1e-b701-5b1fdd8316a8",
+      "name": "Get many messages1",
+      "webhookId": "6e9f54f1-dc2a-477c-99e7-d58c6b49fbbc",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "utTz6M7IT4wk0wFg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "compare": "selectedFields",
+        "fieldsToCompare": "id",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        2816
+      ],
+      "id": "59d0aa74-cb06-4e83-8ab4-932a78b4784b",
+      "name": "Remove Duplicates"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "ea14b517-d5eb-4343-9811-a707abbec352",
+              "leftValue": "={{ $json.date }}",
+              "rightValue": "={{ $today.minus({ days: 30 }).format('yyyy-MM-dd') }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        2736
+      ],
+      "id": "82a04880-ec47-4643-9101-faa9e20cc86b",
+      "name": "Invoice filter1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fd40a684-f226-4385-a201-984f355efe33",
+              "leftValue": "={{ $('Invoice filter1').all().some(item => $json.snippet.includes(item.json.vendorName) && $json.snippet.includes(item.json.amount.toString())) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1136,
+        2816
+      ],
+      "id": "5c766f77-fda3-42a2-b1dc-67c3083b7454",
+      "name": "Gmail Filter1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\n// Separate invoices and emails\nconst invoices = items.filter(item => item.json.invoiceId !== undefined);\nconst emails = items.filter(item => item.json.threadId !== undefined);\n\nfor (const email of emails) {\n  // Get email text content\n  const text = email.json.text || '';\n  const html = email.json.html || '';\n  const content = text + ' ' + html;\n\n  // Get binary attachments\n  const binaryKeys = Object.keys(email.binary || {});\n\n  // Find matching invoice\n  const matchedInvoice = invoices.find(inv => {\n    const vendorName = inv.json.vendorName || '';\n    const amount = String(inv.json.amount || '');\n    \n    return (\n      content.toLowerCase().includes(vendorName.toLowerCase()) &&\n      content.includes(amount)\n    );\n  });\n\n  if (!matchedInvoice) continue;\n\n  // If email has attachments\n  if (binaryKeys.length > 0) {\n    for (const key of binaryKeys) {\n      const file = email.binary[key];\n      results.push({\n        json: {\n          invoiceId: matchedInvoice.json.invoiceId,\n          vendorName: matchedInvoice.json.vendorName,\n          amount: matchedInvoice.json.amount,\n          date: matchedInvoice.json.date,\n          dueDate: matchedInvoice.json.dueDate,\n          accountCode: matchedInvoice.json.accountCode,\n          taxType: matchedInvoice.json.taxType,\n          currency: matchedInvoice.json.currency,\n          emailId: email.json.id,\n          emailSubject: email.json.subject,\n          fileName: file.fileName || 'attachment.pdf',\n          mimeType: file.mimeType || 'application/octet-stream'\n        },\n        binary: {\n          data: file\n        }\n      });\n    }\n  } else {\n    // No attachment but still matched\n    results.push({\n      json: {\n        invoiceId: matchedInvoice.json.invoiceId,\n        vendorName: matchedInvoice.json.vendorName,\n        amount: matchedInvoice.json.amount,\n        date: matchedInvoice.json.date,\n        dueDate: matchedInvoice.json.dueDate,\n        accountCode: matchedInvoice.json.accountCode,\n        taxType: matchedInvoice.json.taxType,\n        currency: matchedInvoice.json.currency,\n        emailId: email.json.id,\n        emailSubject: email.json.subject,\n        fileName: null,\n        mimeType: null\n      }\n    });\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { message: 'No matches found' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2080,
+        2832
+      ],
+      "id": "8355b299-dc22-41bc-af7c-de1f768687eb",
+      "name": "Code in JavaScript3"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1920,
+        2496
+      ],
+      "id": "c1a04d07-956a-40d5-8227-e2862016ab1c",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "260bf385-fd8a-4c3a-9f44-604f6bbd8c60",
+              "leftValue": "={{ $json.fileName }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "16de6aa4-c8b7-4fb2-b1d2-791b53ef6fe7",
+              "leftValue": "={{ $binary.data.fileExtension}}",
+              "rightValue": "csv",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        2416,
+        2832
+      ],
+      "id": "f21dfd3d-5e1e-40ba-8f5b-1db2cc9dd8c9",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $json.invoiceId }}/Attachments/{{ $json.fileName }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Xero-Tenant-Id",
+              "value": "1f61fcad-ead5-4600-9092-e3892d2be2b6"
+            },
+            {
+              "name": "Content-Type",
+              "value": "={{ $json.mimeType }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {}
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3392,
+        2848
+      ],
+      "id": "cb7ca745-da02-49c4-9404-1ef9bbca9c5f",
+      "name": "Upload File to Xero Invoice2",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "8KhERvRQs7boctCI",
+          "name": "Testing Credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2768,
+        2832
+      ],
+      "id": "b4211b3f-e085-489f-8dcd-8a9a7e4639fa",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3088,
+        2848
+      ],
+      "id": "da3a1f3d-e013-4199-9c7f-954762841f22",
+      "name": "Wait2",
+      "webhookId": "a9b48e97-5803-49ad-8654-d540bfead47d"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "fd40a684-f226-4385-a201-984f355efe33",
+              "leftValue": "={{ $('Invoice filter').all().some(item => {\n  const emailTime = Number($json.internalDate);\n  const invoiceTime = new Date(item.json.date).getTime();\n  \n  const diffDays = Math.abs((emailTime - invoiceTime) / 86400000);\n  const isWithinDate = diffDays <= 14;\n\n  const amount = item.json.amount.toString();\n  const amountDec = Number(item.json.amount).toFixed(2);\n  const hasAmount = $json.snippet.includes(amount) || $json.snippet.includes(amountDec);\n\n  const hasVendor = $json.snippet.toLowerCase().includes(item.json.vendorName.toLowerCase());\n\n  return (hasAmount && isWithinDate) || (hasVendor && hasAmount);\n}) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1264,
+        880
+      ],
+      "id": "c4f0e499-b27c-49b0-839a-bf5d07a8315c",
+      "name": "Gmail Filter2"
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://api.xero.com/api.xro/2.0/Invoices/{{ $json.invoiceId }}/Attachments/{{ encodeURIComponent($json.fileName) }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Xero-Tenant-Id",
+              "value": "35c2a9c8-06b5-4499-95c2-95eac59eb4e3"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/pdf"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {
+          "response": {
+            "response": {}
+          },
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        3136,
+        912
+      ],
+      "id": "f737e08e-ac7d-4a87-812a-249b563114bb",
+      "name": "Upload File to Xero Invoice3",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "mhknDi2mGsPcvuFE",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.xero.com/api.xro/2.0/BankTransactions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "oAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "where",
+              "value": "={{ 'Date>=DateTime(' + $today.minus({ days: 10 }).format('yyyy,MM,dd') + ')' }}"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Xero-Tenant-Id",
+              "value": "={{ $json.tenantId }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Get Bank Transactions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -160,
+        496
+      ],
+      "id": "72669c66-4f21-462f-8fba-66ba82e2e2ae",
+      "credentials": {
+        "oAuth2Api": {
+          "id": "mhknDi2mGsPcvuFE",
+          "name": "Unnamed credential"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -928,
+        880
+      ],
+      "id": "320c9cf0-8230-4e25-835d-a6c7271ac8d1",
+      "name": "Daily 9am Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "const transactions = $input.first().json.BankTransactions;\n\nif (!transactions || transactions.length === 0) {\n  return [{ json: { subject: 'Daily Bank Summary - No Transactions', body: 'No transactions found for today.' } }];\n}\n\n// Separate RECEIVE and SPEND\nconst receives = transactions.filter(tx => tx.Type === 'RECEIVE');\nconst spends = transactions.filter(tx => tx.Type === 'SPEND');\n\n// Calculate totals\nconst totalIn = receives.reduce((sum, tx) => sum + tx.Total, 0);\nconst totalOut = spends.reduce((sum, tx) => sum + tx.Total, 0);\nconst net = totalIn - totalOut;\n\n// Format date\nconst today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });\n\n// Build RECEIVE section\nlet receiveLines = receives.length > 0\n  ? receives.map(tx => `  • ${tx.Contact?.Name || 'Unknown'}: £${tx.Total.toFixed(2)}`).join('\\n')\n  : '  None';\n\n// Build SPEND section\nlet spendLines = spends.length > 0\n  ? spends.map(tx => `  • ${tx.Contact?.Name || 'Unknown'}: £${tx.Total.toFixed(2)}`).join('\\n')\n  : '  None';\n\n// Build email body\nconst body = `📊 Daily Bank Summary - ${today}\n\n💰 MONEY IN (${receives.length} transactions):\n${receiveLines}\nTotal In: £${totalIn.toFixed(2)}\n\n💸 MONEY OUT (${spends.length} transactions):\n${spendLines}\nTotal Out: £${totalOut.toFixed(2)}\n\n${net >= 0 ? '✅' : '⚠️'} Net: ${net >= 0 ? '+' : ''}£${net.toFixed(2)}\n\n---\nGenerated automatically by n8n`;\n\nreturn [{\n  json: {\n    subject: `📊 Daily Bank Summary - ${today} | Net: ${net >= 0 ? '+' : ''}£${net.toFixed(2)}`,\n    body: body\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        496
+      ],
+      "id": "6eda285d-b63f-4b10-bc8f-28f8b458bc99",
+      "name": "Format Summary"
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@gmail.com",
+        "subject": "={{ $json.subject }}",
+        "emailType": "text",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        320,
+        496
+      ],
+      "id": "87f23c6b-bf4e-4f16-9658-945533d6a7aa",
+      "name": "Send Summary Email",
+      "webhookId": "6ff52688-6c41-4040-949d-3133bab1e117",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "utTz6M7IT4wk0wFg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\n// Get all invoices from Invoice filter\nconst invoices = $('Invoice filter').all();\n\n// Get all matched emails from Gmail Filter\nconst matchedEmails = $('Gmail Filter2').all();\n\nfor (const invoice of invoices) {\n  const vendorName = invoice.json.vendorName || '';\n  const amount = invoice.json.amount || 0;\n  const invoiceId = invoice.json.invoiceId || '';\n  const date = invoice.json.date || '';\n\n  // Check if any email matches this invoice\n  const hasMatch = matchedEmails.some(email => {\n    const snippet = email.json.snippet || '';\n    const text = email.json.text || '';\n    const content = snippet + ' ' + text;\n    return (\n      content.toLowerCase().includes(vendorName.toLowerCase()) &&\n      content.includes(String(amount))\n    );\n  });\n\n  if (!hasMatch) {\n    results.push({\n      json: {\n        invoiceId: invoiceId,\n        vendorName: vendorName,\n        amount: amount,\n        date: date,\n        status: 'NO EMAIL FOUND',\n        loggedAt: new Date().toISOString()\n      }\n    });\n  }\n}\n\nreturn results.length > 0 ? results : [{ json: { message: 'All invoices matched' } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        1184
+      ],
+      "id": "f444cbbb-9839-480c-9814-58cefc18a41a",
+      "name": "Find Unmatched Invoices"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "has-unmatched",
+              "leftValue": "={{ $json.invoiceId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1360,
+        1184
+      ],
+      "id": "48e68bfa-4344-472e-ab69-0b5a19c99729",
+      "name": "Filter Has Errors1"
+    },
+    {
+      "parameters": {
+        "sendTo": "your-email@gmail.com",
+        "subject": "=⚠️ Unmatched Invoice Alert - {{ $json.vendorName }} | £{{ $json.amount }}",
+        "emailType": "text",
+        "message": "=⚠️ No matching email found for invoice!\n\nInvoice ID: {{ $json.invoiceId }}\nVendor: {{ $json.vendorName }}\nAmount: £{{ $json.amount }}\nInvoice Date: {{ $json.date }}\nStatus: {{ $json.status }}\nLogged At: {{ $json.loggedAt }}\n\nPlease check your email inbox manually for this invoice.",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1648,
+        1184
+      ],
+      "id": "7245a88b-04c5-4aaa-b375-0ea37d161cd2",
+      "name": "Send Unmatched Alert1",
+      "webhookId": "0eedcd91-a072-4d05-8816-28a528488f98",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "utTz6M7IT4wk0wFg",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "Xero automation for BILLS:\n\nAutomatic uploading invoice into the xero account. Just place the your xero Client ID and Client secret. Then you get the tenant ID. It will connect with your n8n to xero account. This workflow work for bills.\n",
+        "height": 480,
+        "width": 384
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -416,
+        2624
+      ],
+      "typeVersion": 1,
+      "id": "b953b915-ec8a-40c7-9c71-2c6f6e45514c",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Xero Tenant ID": {
+      "main": [
+        [
+          {
+            "node": "Get Xero Invoices2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Bank Transactions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Xero Invoices": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Invoice filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages": {
+      "main": [
+        [
+          {
+            "node": "Gmail Filter2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates1": {
+      "main": [
+        [
+          {
+            "node": "Get Email With Attachment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Email With Attachment": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Invoice filter": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Upload File to Xero Invoice3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Xero Invoices2": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Email With Attachment1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Xero Tenant ID1": {
+      "main": [
+        [
+          {
+            "node": "Get Xero Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Invoice filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many messages1": {
+      "main": [
+        [
+          {
+            "node": "Gmail Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Get Email With Attachment1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invoice filter1": {
+      "main": [
+        [
+          {
+            "node": "Get many messages1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Filter1": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript3": {
+      "main": [
+        [
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload File to Xero Invoice2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Wait2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait2": {
+      "main": [
+        [
+          {
+            "node": "Upload File to Xero Invoice2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Filter2": {
+      "main": [
+        [
+          {
+            "node": "Remove Duplicates1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Find Unmatched Invoices",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload File to Xero Invoice3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Bank Transactions": {
+      "main": [
+        [
+          {
+            "node": "Format Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily 9am Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Xero Tenant ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Summary": {
+      "main": [
+        [
+          {
+            "node": "Send Summary Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Unmatched Invoices": {
+      "main": [
+        [
+          {
+            "node": "Filter Has Errors1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Has Errors1": {
+      "main": [
+        [
+          {
+            "node": "Send Unmatched Alert1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "938774bd-e709-4736-9399-6149ea15b15a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f108996e7f17d5d0c91625e77fdbcaba25225d5df54dd579671877230d8b44b6"
+  },
+  "id": "9ktMmILZYCN3Ont1",
+  "tags": []
+}
